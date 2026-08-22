@@ -1,6 +1,6 @@
 // Maps Razorpay or gateway failure codes to internal cause buckets
 
-export type FailureCause = 'invalid_card' | 'gateway_timeout' | 'insufficient_funds' | 'bank_offline' | 'unknown';
+export type FailureCause = 'invalid_card' | 'gateway_timeout' | 'insufficient_funds' | 'bank_offline' | 'fraud_suspected' | 'unknown';
 
 export function classifyFailure(failureCode: string | null): FailureCause {
   if (!failureCode) return 'unknown';
@@ -24,6 +24,10 @@ export function classifyFailure(failureCode: string | null): FailureCause {
   
   if (code.includes('BANK_OFFLINE') || code.includes('DOWNTIME')) {
     return 'bank_offline';
+  }
+
+  if (code.includes('RISK') || code.includes('FRAUD')) {
+    return 'fraud_suspected';
   }
 
   return 'unknown';

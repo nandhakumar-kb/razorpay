@@ -14,6 +14,10 @@ export function determineAction(context: StrategyContext): Action {
   if (context.retryCount >= 3) {
     return 'escalate'; // Max retries exceeded
   }
+  
+  if (context.cause === 'fraud_suspected') {
+    return 'escalate'; // Always escalate suspected fraud
+  }
 
   // Strategy Table
   if (context.paymentType === 'subscription') {
