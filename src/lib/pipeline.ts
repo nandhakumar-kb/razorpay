@@ -6,15 +6,22 @@ import { composeRecoveryMessage } from './agents/messageComposer';
 import { createPaymentLink, triggerMandateRetry } from './services/razorpay';
 
 export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
-  // Fetch failed transactions that don't have a completed recovery event
+  // Fetch failed transactions that don't have a completed recovery event for this strategy
   const failedTransactions = await prisma.transaction.findMany({
     where: {
       status: 'failed',
+      recoveryEvents: {
+        none: {
+          strategyType: strategy,
+          actionStatus: { notIn: ['skipped_duplicate', 'failed'] }
+        }
+      }
     },
     include: {
       customer: true,
       recoveryEvents: true,
-    }
+    },
+    take: 5 // Process in batches of 5 to prevent Vercel Serverless Function 10s timeout
   });
 
   const APPROVAL_THRESHOLD = 50000; // ₹500 in paise
