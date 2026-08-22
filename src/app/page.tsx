@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { runRecoveryPipeline, executeRecoveryAction } from '@/lib/pipeline';
 import { revalidatePath } from 'next/cache';
 
+export const dynamic = 'force-dynamic';
+
 async function fetchStats() {
   const events = await prisma.recoveryEvent.findMany({
     include: { transaction: { include: { customer: true } } },
