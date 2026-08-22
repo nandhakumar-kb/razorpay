@@ -88,6 +88,8 @@ export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
     // 5. Execute Action if approved immediately
     await executeRecoveryAction(event.id);
   }
+
+  return failedTransactions.length;
 }
 
 export async function executeRecoveryAction(eventId: string) {

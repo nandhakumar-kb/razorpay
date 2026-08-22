@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { runRecoveryPipeline, executeRecoveryAction } from '@/lib/pipeline';
 import { revalidatePath } from 'next/cache';
+import { RunBatchButton } from '@/components/RunBatchButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,14 +50,16 @@ export default async function Dashboard() {
 
   const runNaive = async () => {
     'use server';
-    await runRecoveryPipeline('naive');
+    const count = await runRecoveryPipeline('naive');
     revalidatePath('/');
+    return count;
   };
 
   const runAI = async () => {
     'use server';
-    await runRecoveryPipeline('ai');
+    const count = await runRecoveryPipeline('ai');
     revalidatePath('/');
+    return count;
   };
 
   const approveEvent = async (formData: FormData) => {
@@ -133,9 +136,7 @@ export default async function Dashboard() {
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
             Protects: ₹{(stats.naive.amountProtected / 100).toLocaleString()} ({stats.naive.total} events)
           </p>
-          <form action={runNaive}>
-            <button className="btn btn-outline" style={{ width: '100%' }}>Run Naive Batch</button>
-          </form>
+          <RunBatchButton action={runNaive} label="Run Naive Batch" strategy="naive" />
         </div>
 
         <div className="card" style={{ borderColor: 'var(--accent-color)' }}>
@@ -153,9 +154,7 @@ export default async function Dashboard() {
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
             Protects: ₹{(stats.ai.amountProtected / 100).toLocaleString()} ({stats.ai.total} events)
           </p>
-          <form action={runAI}>
-            <button className="btn btn-primary" style={{ width: '100%' }}>Run AI Pipeline Batch</button>
-          </form>
+          <RunBatchButton action={runAI} label="Run AI Pipeline Batch" strategy="ai" />
         </div>
       </div>
 

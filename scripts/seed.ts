@@ -83,7 +83,7 @@ async function main() {
     const txn = createdTransactions[i];
     historicalEventsData.push({
       transactionId: txn.id,
-      diagnosis: 'unknown',
+      diagnosis: FAILURE_CAUSES.find(f => f.code === txn.failureCode)?.cause || 'unknown',
       actionTaken: 'create_payment_link',
       actionStatus: 'executed',
       outcome: 'recovered',
