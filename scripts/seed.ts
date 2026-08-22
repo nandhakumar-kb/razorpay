@@ -58,6 +58,60 @@ async function main() {
 
   console.log(`Created ${createdTransactions.length} failed transactions.`);
 
+  // 2.5 Pre-seed historical recovery events so dashboard doesn't start at 0%
+  console.log('Seeding historical recovery events...');
+  const historicalEventsData = [];
+  
+  // 10 AI successes
+  for (let i = 0; i < 10; i++) {
+    const txn = createdTransactions[i];
+    historicalEventsData.push({
+      transactionId: txn.id,
+      diagnosis: FAILURE_CAUSES.find(f => f.code === txn.failureCode)?.cause || 'unknown',
+      confidence: 0.95,
+      actionTaken: 'create_payment_link',
+      actionStatus: 'executed',
+      outcome: 'recovered',
+      strategyType: 'ai',
+      reasoningLog: '[Historical Seed] Automatically recovered via AI payment link.',
+      createdAt: new Date(Date.now() - Math.random() * 1000000000), // Random past date
+    });
+  }
+
+  // 3 Naive successes
+  for (let i = 10; i < 13; i++) {
+    const txn = createdTransactions[i];
+    historicalEventsData.push({
+      transactionId: txn.id,
+      diagnosis: 'unknown',
+      actionTaken: 'create_payment_link',
+      actionStatus: 'executed',
+      outcome: 'recovered',
+      strategyType: 'naive',
+      reasoningLog: '[Historical Seed] Naive retry successful.',
+      createdAt: new Date(Date.now() - Math.random() * 1000000000),
+    });
+  }
+
+  // 2 AI escalations (for variety in Audit Trail)
+  for (let i = 13; i < 15; i++) {
+    const txn = createdTransactions[i];
+    historicalEventsData.push({
+      transactionId: txn.id,
+      diagnosis: 'fraud_suspected',
+      actionTaken: 'escalate',
+      actionStatus: 'executed',
+      outcome: 'escalated',
+      strategyType: 'ai',
+      reasoningLog: '[Historical Seed] Escalated to human review.',
+      createdAt: new Date(Date.now() - Math.random() * 1000000000),
+    });
+  }
+
+  await prisma.recoveryEvent.createMany({
+    data: historicalEventsData,
+  });
+
   // 3. Initialize Success Rates learning table with some base stats (optional, but helps with demo)
   const causes = ['invalid_card', 'gateway_timeout', 'insufficient_funds', 'bank_offline'];
   const actions = ['create_payment_link', 'trigger_mandate_retry', 'escalate'];

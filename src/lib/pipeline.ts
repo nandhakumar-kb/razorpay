@@ -12,8 +12,7 @@ export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
       status: 'failed',
       recoveryEvents: {
         none: {
-          strategyType: strategy,
-          actionStatus: { notIn: ['skipped_duplicate', 'failed'] }
+          strategyType: strategy
         }
       }
     },
@@ -24,7 +23,7 @@ export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
     take: 5 // Process in batches of 5 to prevent Vercel Serverless Function 10s timeout
   });
 
-  const APPROVAL_THRESHOLD = 50000; // ₹500 in paise
+  const APPROVAL_THRESHOLD = 400000; // ₹4000 in paise
 
   for (const transaction of failedTransactions) {
     // 1. Idempotency Check
