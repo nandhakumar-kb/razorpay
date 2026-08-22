@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id           String        @id @default(uuid())
+  name         String
+  contact      String?       // email or phone
+  plan         String?       // subscription plan
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+}
+
+model Transaction {
+  id              String          @id @default(uuid())
+  customerId      String
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  amount          Int             // Amount in paise (1 INR = 100 paise)
+  method          String          // e.g., 'card', 'upi', 'netbanking'
+  paymentType     String          // 'one_time' or 'subscription'
+  status          String          // 'failed', 'recovered', etc.
+  failureCode     String?
+  createdAt       DateTime        @default(now())
+  retryCount      Int             @default(0)
+  recoveryEvents  RecoveryEvent[]
+}
+
+model RecoveryEvent {
+  id               String          @id @default(uuid())
+  transactionId    String
+  transaction      Transaction     @relation(fields: [transactionId], references: [id])
+  diagnosis        String?         // cause of failure
+  confidence       Float?          // LLM confidence (0 to 1), null if deterministic
+  actionTaken      String          // 'create_payment_link', 'trigger_mandate_retry', 'escalate', 'none'
+  actionStatus     String          // 'pending_approval', 'approved', 'executed', 'skipped_duplicate'
+  actionTimestamp  DateTime?       
+  outcome          String          // 'recovered', 'still_failed', 'pending', 'escalated'
+  recoveredAmount  Int?            // Amount recovered
+  reasoningLog     String?         // Audit log text for the reasoning
+  strategyType     String          // 'naive' or 'ai' - essential for A/B comparison
+  createdAt        DateTime        @default(now())
+  
+  approvalQueueItem ApprovalQueue?
+}
+
+model SuccessRate {
+  id           String   @id @default(uuid())
+  cause        String   // e.g., 'insufficient_funds', 'invalid_card'
+  action       String   // e.g., 'create_payment_link'
+  attempts     Int      @default(0)
+  successes    Int      @default(0)
+  successRate  Float    @default(0.0)
+  lastUpdated  DateTime @updatedAt
+  
+  @@unique([cause, action])
+}
+
+model ApprovalQueue {
+  id              String        @id @default(uuid())
+  recoveryEventId String        @unique
+  recoveryEvent   RecoveryEvent @relation(fields: [recoveryEventId], references: [id])
+  amount          Int
+  requestedAt     DateTime      @default(now())
+  approvedBy      String?       // user ID or null
+  approvedAt      DateTime?
+}
