@@ -84,10 +84,18 @@ export default async function Dashboard() {
     });
 
     if (event.diagnosis && event.actionTaken !== 'none') {
-       await prisma.successRate.update({
-         where: { cause_action: { cause: event.diagnosis, action: event.actionTaken } },
-         data: { successes: { increment: 1 } }
-       }).catch(() => {}); // ignore if success rate record doesn't exist yet
+       const existing = await prisma.successRate.findUnique({
+         where: { cause_action: { cause: event.diagnosis, action: event.actionTaken } }
+       });
+       if (existing) {
+         await prisma.successRate.update({
+           where: { cause_action: { cause: event.diagnosis, action: event.actionTaken } },
+           data: {
+             successes: { increment: 1 },
+             successRate: (existing.successes + 1) / existing.attempts
+           }
+         });
+       }
     }
     revalidatePath('/');
   };

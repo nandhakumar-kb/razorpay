@@ -155,24 +155,33 @@ export async function executeRecoveryAction(eventId: string) {
     // Update Learning Loop (Success Rates)
     if (event.diagnosis && event.actionTaken !== 'none') {
       const isSuccess = outcome === 'recovered' ? 1 : 0;
-      await prisma.successRate.upsert({
-        where: {
-          cause_action: { cause: event.diagnosis, action: event.actionTaken }
-        },
-        update: {
-          attempts: { increment: 1 },
-          successes: { increment: isSuccess },
-        },
-        create: {
-          cause: event.diagnosis,
-          action: event.actionTaken,
-          attempts: 1,
-          successes: isSuccess,
-          successRate: isSuccess ? 1.0 : 0.0
-        }
+      
+      const existing = await prisma.successRate.findUnique({
+        where: { cause_action: { cause: event.diagnosis, action: event.actionTaken } }
       });
       
-      // We would ideally recalculate successRate periodically, or do it on read
+      if (existing) {
+        const newAttempts = existing.attempts + 1;
+        const newSuccesses = existing.successes + isSuccess;
+        await prisma.successRate.update({
+          where: { cause_action: { cause: event.diagnosis, action: event.actionTaken } },
+          data: {
+            attempts: newAttempts,
+            successes: newSuccesses,
+            successRate: newSuccesses / newAttempts
+          }
+        });
+      } else {
+        await prisma.successRate.create({
+          data: {
+            cause: event.diagnosis,
+            action: event.actionTaken,
+            attempts: 1,
+            successes: isSuccess,
+            successRate: isSuccess ? 1.0 : 0.0
+          }
+        });
+      }
     }
     
   } catch (error: any) {
