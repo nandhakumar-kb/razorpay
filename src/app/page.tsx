@@ -5,10 +5,11 @@ import { revalidatePath } from 'next/cache';
 export const dynamic = 'force-dynamic';
 
 async function fetchStats() {
-  const events = await prisma.recoveryEvent.findMany({
-    include: { transaction: { include: { customer: true } } },
-    orderBy: { createdAt: 'desc' }
-  });
+  try {
+    const events = await prisma.recoveryEvent.findMany({
+      include: { transaction: { include: { customer: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
 
   const naiveEvents = events.filter((e: any) => e.strategyType === 'naive');
   const aiEvents = events.filter((e: any) => e.strategyType === 'ai');
@@ -24,12 +25,23 @@ async function fetchStats() {
     return { total, recovered, rate, amountProtected, amountRecovered };
   };
 
-  return {
-    naive: calcStats(naiveEvents),
-    ai: calcStats(aiEvents),
-    events: events.slice(0, 50),
-    approvalQueue,
-  };
+    return {
+      naive: calcStats(naiveEvents),
+      ai: calcStats(aiEvents),
+      events: events.slice(0, 50),
+      approvalQueue,
+      error: null,
+    };
+  } catch (error: any) {
+    console.error("Database fetch error:", error);
+    return {
+      naive: { total: 0, recovered: 0, rate: '0.0', amountProtected: 0, amountRecovered: 0 },
+      ai: { total: 0, recovered: 0, rate: '0.0', amountProtected: 0, amountRecovered: 0 },
+      events: [],
+      approvalQueue: [],
+      error: error.message || "Failed to connect to database.",
+    };
+  }
 }
 
 export default async function Dashboard() {
@@ -65,6 +77,16 @@ export default async function Dashboard() {
         <h1>AI Revenue Recovery Dashboard</h1>
         <p>Real-time analytics and recovery engine monitoring.</p>
       </div>
+
+      {stats.error && (
+        <div className="card" style={{ backgroundColor: '#ffebee', color: '#c62828', borderColor: '#ef5350', marginBottom: '2rem' }}>
+          <h3>⚠️ Database Connection Error</h3>
+          <p>{stats.error}</p>
+          <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>
+            <strong>How to fix:</strong> Ensure you have added <code>DATABASE_URL</code> to your Vercel Environment Variables, and that you have pushed your schema to the remote database using <code>npx prisma db push</code>.
+          </p>
+        </div>
+      )}
 
       <div className="grid-2">
         <div className="card">
