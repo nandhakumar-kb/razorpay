@@ -1,8 +1,8 @@
 import Razorpay from 'razorpay';
 
 export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+  key_id: process.env.RAZORPAY_KEY_ID || 'dummy_key_id',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
 });
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
