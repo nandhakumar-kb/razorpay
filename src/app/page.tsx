@@ -71,6 +71,27 @@ export default async function Dashboard() {
     revalidatePath('/');
   };
 
+  const simulatePayment = async (formData: FormData) => {
+    'use server';
+    const eventId = formData.get('eventId') as string;
+    
+    const event = await prisma.recoveryEvent.findUnique({ where: { id: eventId } });
+    if (!event || event.outcome !== 'pending') return;
+
+    await prisma.recoveryEvent.update({
+      where: { id: eventId },
+      data: { outcome: 'recovered' }
+    });
+
+    if (event.diagnosis && event.actionTaken !== 'none') {
+       await prisma.successRate.update({
+         where: { cause_action: { cause: event.diagnosis, action: event.actionTaken } },
+         data: { successes: { increment: 1 } }
+       }).catch(() => {}); // ignore if success rate record doesn't exist yet
+    }
+    revalidatePath('/');
+  };
+
   return (
     <div className="container">
       <div className="header">
@@ -203,6 +224,14 @@ export default async function Dashboard() {
                     <span className={`badge ${evt.outcome === 'recovered' ? 'success' : evt.outcome === 'escalated' ? 'danger' : 'info'}`}>
                       {evt.outcome}
                     </span>
+                    {evt.outcome === 'pending' && evt.actionStatus !== 'failed' && (
+                      <form action={simulatePayment} style={{ display: 'inline-block', marginLeft: '8px' }}>
+                        <input type="hidden" name="eventId" value={evt.id} />
+                        <button className="btn btn-outline" style={{ padding: '0.1rem 0.4rem', fontSize: '0.65rem' }}>
+                          Simulate Pay
+                        </button>
+                      </form>
+                    )}
                   </td>
                 </tr>
               ))}
