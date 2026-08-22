@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Revenue Recovery System 💰🤖
 
-## Getting Started
+An autonomous, deterministic, and auditable pipeline designed to recover failed payments via Razorpay. It uses a hybrid approach of hardcoded strategy engines for reliable transaction handling and Large Language Models (LLMs) for personalized customer communication.
 
-First, run the development server:
+## 🌟 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Synthetic Data Generation**: Automatically seed your local database with 50+ failed transactions using realistic Razorpay failure code distributions.
+- **Deterministic Classification & Strategy Engine**: 
+  - Accurately maps failure codes (e.g., `BAD_REQUEST_ERROR`) to underlying causes (e.g., `invalid_card`, `insufficient_funds`).
+  - Decides the next best action (`create_payment_link`, `trigger_mandate_retry`) based on payment types (one-time vs. subscription), **respecting a hard 3-attempt cap per transaction before forced escalation**.
+- **Continuous Learning Loop**: Every outcome is written back to a `SuccessRates` table to actively track the conversion % of each (cause, action) pair over time.
+- **Idempotency & Auditing**: Guarantees that actions are never duplicated on the same failed transaction. Every step (diagnosis, action, reasoning) is tracked in an `Audit Trail`.
+- **Human Approval Gates vs. Escalation**: 
+  - **Approval Gate (Pre-action)**: Automatically pauses high-value transactions (e.g., > ₹500) into a pending queue requiring human authorization *before* a recovery action runs.
+  - **Escalation (Terminal state)**: When the 3-retry cap is hit, or a card is completely invalid, the system automatically abandons automated retries and escalates it.
+- **LLM Integration (Gemini)**: 
+  - **Message Composer**: Drafts personalized SMS/WhatsApp recovery messages explaining the exact failure reason concisely to the customer.
+  - **Exception Summarizer**: Analyzes unrecoverable transactions and generates plain-English insights for merchants.
+- **A/B Strategy Testing Dashboard**: Visually compare a "Naive Baseline" approach (blind retries) against the "AI Strategy" (cause-aware actions) side-by-side.
+
+## 📂 Project Structure
+
+```
+razorpay/
+├── prisma/
+│   └── schema.prisma           # DB models (Customer, Transaction, RecoveryEvent, SuccessRate, etc.)
+├── scripts/
+│   └── seed.ts                 # Script to inject dummy data into the database
+├── src/
+│   ├── app/
+│   │   ├── globals.css         # Clean, Vanilla CSS styling (No Tailwind!)
+│   │   ├── layout.tsx          # Root Next.js layout component
+│   │   └── page.tsx            # Interactive Dashboard UI and Server Actions
+│   ├── lib/
+│   │   ├── agents/
+│   │   │   ├── exceptionSummarizer.ts # LLM Agent for batch summaries
+│   │   │   └── messageComposer.ts     # LLM Agent for composing recovery messages
+│   │   ├── engines/
+│   │   │   ├── classifier.ts   # Deterministic failure code classification
+│   │   │   ├── strategy.ts     # Deterministic recovery action decider (AI/Cause-aware)
+│   │   │   └── strategyNaive.ts# Baseline strategy (Blind retries for A/B testing)
+│   │   ├── services/
+│   │   │   └── razorpay.ts     # Razorpay API Integration (Payment Links & Mandates)
+│   │   ├── pipeline.ts         # The core engine orchestrating engines, agents, and DB
+│   │   └── prisma.ts           # Prisma ORM instance
+├── .env.example                # Template for safe sharing of required environment variables
+├── .env                        # Local environment variables (git-ignored)
+└── package.json                # Project dependencies and scripts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Getting Started
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Prerequisites
+Ensure you have Node.js (v18+) and npm installed. 
+You will also need:
+- **Razorpay Test API Keys** (`RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`)
+- **Gemini API Key** (`GEMINI_API_KEY`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 2. Environment Setup
+Populate the `.env` file at the root of the project with your keys:
+```env
+RAZORPAY_KEY_ID=your_key_here
+RAZORPAY_KEY_SECRET=your_secret_here
+GEMINI_API_KEY=your_gemini_key
+DATABASE_URL="file:./dev.db"  # Use postgresql string if deploying!
+```
 
-## Learn More
+### 3. Install Dependencies
+```bash
+npm install
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 4. Initialize Database & Seed
+Push the Prisma schema to generate the SQLite database, and then seed it with synthetic data.
+```bash
+npx prisma db push
+npx tsx scripts/seed.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 5. Start Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to view the Revenue Recovery Dashboard!
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 6. Resetting the Demo State
+If you are doing a live pitch and want to start with a fresh slate, use the one-click reset command:
+```bash
+npm run demo:reset
+```
+This command automatically wipes the current database tables and reseeds them with exactly 50 fresh failed transactions so you can run the batch cleanly again on stage.
 
-## Deploy on Vercel
+## ⚠️ Known Limitations
+- **Simulated Real-World Outcomes**: We use Razorpay's real test-mode APIs for every action, but test-mode success/failure is determined by which test card we use. Therefore, we model realistic outcome probabilities rather than claiming real bank behavior.
+- **Mocked Messaging**: We do not send real SMS/WhatsApp messages in this demo. We show the AI-drafted message and log it as sent, since actual messaging infrastructure is a separate product integration.
+- **Compliance Rules**: Our compliance rules (e.g., retry limits, mandate windows) are modeled after publicly documented NPCI/Razorpay guidelines for demonstration purposes. In production, this would need strict legal and compliance sign-off.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🔧 Deployment Notes (Vercel)
+If you plan to deploy this on a serverless provider like Vercel, **you cannot use SQLite** as the `.db` file is ephemeral.
+1. Change the `provider = "sqlite"` to `provider = "postgresql"` in `prisma/schema.prisma`.
+2. Update the `DATABASE_URL` in `.env` to point to a hosted Postgres instance (like Neon, Supabase, or Vercel Postgres).
+3. Run `npx prisma db push` to initialize the production database.

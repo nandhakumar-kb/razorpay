@@ -5,6 +5,8 @@ export const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET || '',
 });
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export async function createPaymentLink(
   amount: number, // in paise
   customerName: string,
@@ -13,6 +15,7 @@ export async function createPaymentLink(
   referenceId: string
 ) {
   try {
+    await delay(300); // Simple throttle to prevent rate limits in batch processing
     const paymentLink = await razorpay.paymentLink.create({
       amount,
       currency: 'INR',
@@ -42,7 +45,7 @@ export async function createPaymentLink(
 export async function triggerMandateRetry(
   subscriptionId: string, // Real subscription ID
   amount: number
-) {
+): Promise<any> {
   try {
     // In test mode, without a real active subscription, this might fail.
     // For a hackathon demo, if the ID starts with 'sub_test', we mock the success response
@@ -53,11 +56,18 @@ export async function triggerMandateRetry(
     // Creating an invoice on a subscription triggers a retry
     // The exact API call depends on the billing model, but generally:
     // This is a placeholder for the actual Razorpay subscriptions API
+    await delay(300); // Simple throttle to prevent rate limits
     const invoice = await razorpay.invoices.create({
       type: 'invoice',
       customer_id: 'cust_dummy',
       amount: amount,
       currency: 'INR',
+      line_items: [{
+        name: 'Mandate Retry',
+        amount: amount,
+        currency: 'INR',
+        quantity: 1
+      }]
     });
     
     return invoice;

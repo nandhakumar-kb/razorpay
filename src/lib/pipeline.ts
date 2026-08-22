@@ -1,6 +1,7 @@
 import { prisma } from './prisma';
 import { classifyFailure } from './engines/classifier';
 import { determineAction } from './engines/strategy';
+import { determineNaiveAction } from './engines/strategyNaive';
 import { composeRecoveryMessage } from './agents/messageComposer';
 import { createPaymentLink, triggerMandateRetry } from './services/razorpay';
 
@@ -21,7 +22,7 @@ export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
   for (const transaction of failedTransactions) {
     // 1. Idempotency Check
     const existingActiveEvent = transaction.recoveryEvents.find(
-      (e) => e.actionStatus !== 'skipped_duplicate' && e.actionStatus !== 'failed' 
+      (e: any) => e.actionStatus !== 'skipped_duplicate' && e.actionStatus !== 'failed' 
              && e.strategyType === strategy
     );
     if (existingActiveEvent) {
@@ -35,9 +36,9 @@ export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
     let reasoningLog = '';
 
     if (strategy === 'naive') {
-      cause = 'unknown';
-      action = 'create_payment_link'; // Blind retry
-      reasoningLog = 'Naive strategy: Blindly retrying by sending a payment link.';
+      cause = classifyFailure(transaction.failureCode); // We still diagnose to record it, but action ignores it
+      action = determineNaiveAction(transaction.retryCount, transaction.paymentType);
+      reasoningLog = `Naive strategy: Ignored cause. Selected action '${action}' based solely on payment type (${transaction.paymentType}).`;
     } else {
       cause = classifyFailure(transaction.failureCode);
       action = determineAction({
@@ -144,6 +145,29 @@ export async function executeRecoveryAction(eventId: string) {
         outcome,
       }
     });
+
+    // Update Learning Loop (Success Rates)
+    if (event.diagnosis && event.actionTaken !== 'none') {
+      const isSuccess = outcome === 'recovered' ? 1 : 0;
+      await prisma.successRate.upsert({
+        where: {
+          cause_action: { cause: event.diagnosis, action: event.actionTaken }
+        },
+        update: {
+          attempts: { increment: 1 },
+          successes: { increment: isSuccess },
+        },
+        create: {
+          cause: event.diagnosis,
+          action: event.actionTaken,
+          attempts: 1,
+          successes: isSuccess,
+          successRate: isSuccess ? 1.0 : 0.0
+        }
+      });
+      
+      // We would ideally recalculate successRate periodically, or do it on read
+    }
     
   } catch (error: any) {
      console.error("Execution error:", error);

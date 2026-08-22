@@ -1,21 +1,23 @@
 import { prisma } from '@/lib/prisma';
-import { runRecoveryPipeline } from '@/lib/pipeline';
+import { runRecoveryPipeline, executeRecoveryAction } from '@/lib/pipeline';
 import { revalidatePath } from 'next/cache';
 
 async function fetchStats() {
   const events = await prisma.recoveryEvent.findMany({
-    include: { transaction: true }
+    include: { transaction: { include: { customer: true } } },
+    orderBy: { createdAt: 'desc' }
   });
 
-  const naiveEvents = events.filter(e => e.strategyType === 'naive');
-  const aiEvents = events.filter(e => e.strategyType === 'ai');
+  const naiveEvents = events.filter((e: any) => e.strategyType === 'naive');
+  const aiEvents = events.filter((e: any) => e.strategyType === 'ai');
+  const approvalQueue = events.filter((e: any) => e.actionStatus === 'pending_approval');
 
   const calcStats = (evts: typeof events) => {
     const total = evts.length;
-    const recovered = evts.filter(e => e.outcome === 'recovered').length;
+    const recovered = evts.filter((e: any) => e.outcome === 'recovered').length;
     const rate = total > 0 ? ((recovered / total) * 100).toFixed(1) : '0.0';
-    const amountProtected = evts.reduce((sum, e) => sum + e.transaction.amount, 0);
-    const amountRecovered = evts.filter(e => e.outcome === 'recovered').reduce((sum, e) => sum + e.transaction.amount, 0);
+    const amountProtected = evts.reduce((sum: number, e: any) => sum + e.transaction.amount, 0);
+    const amountRecovered = evts.filter((e: any) => e.outcome === 'recovered').reduce((sum: number, e: any) => sum + e.transaction.amount, 0);
     
     return { total, recovered, rate, amountProtected, amountRecovered };
   };
@@ -23,7 +25,8 @@ async function fetchStats() {
   return {
     naive: calcStats(naiveEvents),
     ai: calcStats(aiEvents),
-    events: events.slice(0, 50), // display latest 50
+    events: events.slice(0, 50),
+    approvalQueue,
   };
 }
 
@@ -39,6 +42,18 @@ export default async function Dashboard() {
   const runAI = async () => {
     'use server';
     await runRecoveryPipeline('ai');
+    revalidatePath('/');
+  };
+
+  const approveEvent = async (formData: FormData) => {
+    'use server';
+    const eventId = formData.get('eventId') as string;
+    await prisma.recoveryEvent.update({
+      where: { id: eventId },
+      data: { actionStatus: 'approved' }
+    });
+    // Immediately execute after approval
+    await executeRecoveryAction(eventId);
     revalidatePath('/');
   };
 
@@ -91,6 +106,43 @@ export default async function Dashboard() {
         </div>
       </div>
 
+      {stats.approvalQueue.length > 0 && (
+        <div className="card" style={{ marginBottom: '2rem', borderColor: 'var(--warning-color)' }}>
+          <h2 style={{ color: 'var(--warning-color)' }}>Pending Approvals (High Value)</h2>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>Diagnosis</th>
+                  <th>Proposed Action</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.approvalQueue.map((evt: any) => (
+                  <tr key={evt.id}>
+                    <td>{evt.transaction.customer.name}</td>
+                    <td style={{ color: 'var(--accent-color)' }}>₹{evt.transaction.amount / 100}</td>
+                    <td>{evt.diagnosis}</td>
+                    <td>{evt.actionTaken}</td>
+                    <td>
+                      <form action={approveEvent}>
+                        <input type="hidden" name="eventId" value={evt.id} />
+                        <button className="btn btn-primary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>
+                          Approve Live
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2>Audit Trail</h2>
@@ -108,7 +160,7 @@ export default async function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {stats.events.map((evt) => (
+              {stats.events.map((evt: any) => (
                 <tr key={evt.id}>
                   <td>{evt.transactionId.substring(0, 8)}...</td>
                   <td>
@@ -119,11 +171,15 @@ export default async function Dashboard() {
                   <td>{evt.diagnosis || '-'}</td>
                   <td>{evt.actionTaken}</td>
                   <td>
-                    <span className={`badge ${evt.actionStatus === 'approved' || evt.actionStatus === 'executed' ? 'success' : evt.actionStatus === 'pending_approval' ? 'warning' : 'danger'}`}>
+                    <span className={`badge ${evt.actionStatus === 'approved' || evt.actionStatus === 'executed' ? 'success' : evt.actionStatus === 'pending_approval' ? 'warning' : evt.actionStatus === 'failed' ? 'danger' : 'info'}`}>
                       {evt.actionStatus.replace('_', ' ')}
                     </span>
                   </td>
-                  <td>{evt.outcome}</td>
+                  <td>
+                    <span className={`badge ${evt.outcome === 'recovered' ? 'success' : evt.outcome === 'escalated' ? 'danger' : 'info'}`}>
+                      {evt.outcome}
+                    </span>
+                  </td>
                 </tr>
               ))}
               {stats.events.length === 0 && (
