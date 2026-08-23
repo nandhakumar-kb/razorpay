@@ -155,7 +155,7 @@ export async function executeRecoveryAction(eventId: string) {
         transaction.customer.name,
         transaction.customer.contact || '',
         `Recovery for failed payment`,
-        `${transaction.id}-${event.strategyType}`
+        `${transaction.id.slice(0, 30)}-${event.strategyType === 'naive' ? 'n' : 'a'}`
       );
 
       reasoningLog += `\n[MOCKED SMS SENT]: "${message}"\nPayment Link created: ${link.short_url}`;

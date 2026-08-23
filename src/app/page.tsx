@@ -108,17 +108,17 @@ export default async function Dashboard() {
     <>
       <nav className="navbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontWeight: 800, fontSize: '18px', color: 'var(--primary-dark)', letterSpacing: '-0.02em' }}>
-           <div style={{ width: '24px', height: '24px', background: 'var(--primary-purple)', borderRadius: '4px' }}></div>
+           <img src="https://razorpay.com/favicon.png" alt="Razorpay Logo" width={24} height={24} style={{ borderRadius: '4px' }} />
            RAZORPAY
         </div>
         <div className="nav-links">
            <a href="#">Product</a>
            <a href="#">Solutions</a>
-           <a href="#" style={{ color: 'var(--primary-purple)', fontWeight: 600 }}>AI Infrastructure</a>
+           <a href="#" style={{ color: 'var(--primary-blue)', fontWeight: 600 }}>AI Infrastructure</a>
            <a href="#">Developers</a>
         </div>
         <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-           <a href="#" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--primary-purple)' }}>Sign in</a>
+           <a href="#" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--primary-blue)' }}>Sign in</a>
            <button className="btn btn-primary">Get Started</button>
         </div>
       </nav>
@@ -128,7 +128,7 @@ export default async function Dashboard() {
         {/* HERO SECTION */}
         <div className="hero-section">
            <div>
-             <div style={{ color: 'var(--primary-purple)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+             <div style={{ color: 'var(--primary-blue)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <BrainCircuit size={16} /> BUILT AI NATIVE
              </div>
              <h1 className="hero-title">AI that turns payments into decisions.</h1>
@@ -146,7 +146,7 @@ export default async function Dashboard() {
               <div className="ai-workflow" style={{ justifyContent: 'center' }}>
                  <div className="workflow-node"><Activity size={16} /> Input</div>
                  <ArrowRight size={16} style={{ color: 'var(--border-color)' }} />
-                 <div className="workflow-node active" style={{ boxShadow: '0 4px 12px rgba(104, 34, 204, 0.15)' }}><BrainCircuit size={16} /> AI Agent</div>
+                 <div className="workflow-node active" style={{ boxShadow: '0 4px 12px rgba(51, 102, 255, 0.15)' }}><BrainCircuit size={16} /> AI Agent</div>
                  <ArrowRight size={16} style={{ color: 'var(--border-color)' }} />
                  <div className="workflow-node"><Search size={16} /> Decision</div>
                  <ArrowRight size={16} style={{ color: 'var(--border-color)' }} />
@@ -167,7 +167,7 @@ export default async function Dashboard() {
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={14} color="var(--success-color)" /> System Online</div>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldCheck size={14} color="var(--primary-purple)" /> SOC2 Compliant</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}><ShieldCheck size={14} color="var(--primary-blue)" /> SOC2 Compliant</div>
             </div>
           </div>
 
@@ -206,18 +206,18 @@ export default async function Dashboard() {
             <div className="card" style={{ border: '1px solid var(--primary-light)', background: 'radial-gradient(circle at 100% 0%, var(--primary-ultralight), #FFFFFF 60%)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <h3 className="card-title" style={{ color: 'var(--primary-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <BrainCircuit size={18} color="var(--primary-purple)" /> AI Strategy
+                  <BrainCircuit size={18} color="var(--primary-blue)" /> AI Strategy
                 </h3>
-                <span className="badge purple" style={{ fontSize: '11px' }}>Recommended</span>
+                <span className="badge blue" style={{ fontSize: '11px' }}>Recommended</span>
               </div>
               
               <div className="grid-2" style={{ marginBottom: '24px' }}>
                 <div className="stat-box">
-                  <span className="stat-label" style={{ color: 'var(--primary-purple)' }}>Recovery Rate</span>
+                  <span className="stat-label" style={{ color: 'var(--primary-blue)' }}>Recovery Rate</span>
                   <span className="stat-value" style={{ color: 'var(--primary-dark)' }}>{stats.ai.rate}%</span>
                 </div>
                 <div className="stat-box">
-                  <span className="stat-label" style={{ color: 'var(--primary-purple)' }}>Amount Recovered</span>
+                  <span className="stat-label" style={{ color: 'var(--primary-blue)' }}>Amount Recovered</span>
                   <span className="stat-value" style={{ color: 'var(--primary-dark)' }}>₹{(stats.ai.amountRecovered / 100).toLocaleString()}</span>
                 </div>
               </div>
@@ -253,7 +253,7 @@ export default async function Dashboard() {
                     {stats.approvalQueue.map((evt: any) => (
                       <tr key={evt.id}>
                         <td style={{ fontWeight: 500 }}>{evt.transaction.customer.name}</td>
-                        <td style={{ color: 'var(--primary-purple)', fontWeight: 600 }}>₹{evt.transaction.amount / 100}</td>
+                        <td style={{ color: 'var(--primary-blue)', fontWeight: 600 }}>₹{evt.transaction.amount / 100}</td>
                         <td><span className="badge" style={{ background: 'var(--surface-color)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>{evt.diagnosis}</span></td>
                         <td>{evt.actionTaken}</td>
                         <td style={{ fontSize: '13px', maxWidth: '300px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{evt.reasoningLog}</td>
@@ -299,7 +299,7 @@ export default async function Dashboard() {
                     <tr key={evt.id}>
                       <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-secondary)' }}>{evt.transactionId.substring(0, 8)}...</td>
                       <td>
-                        <span className={`badge ${evt.strategyType === 'ai' ? 'purple' : ''}`} style={{ background: evt.strategyType !== 'ai' ? 'var(--surface-color)' : '', color: evt.strategyType !== 'ai' ? 'var(--text-secondary)' : '', border: evt.strategyType !== 'ai' ? '1px solid var(--border-color)' : '' }}>
+                        <span className={`badge ${evt.strategyType === 'ai' ? 'blue' : ''}`} style={{ background: evt.strategyType !== 'ai' ? 'var(--surface-color)' : '', color: evt.strategyType !== 'ai' ? 'var(--text-secondary)' : '', border: evt.strategyType !== 'ai' ? '1px solid var(--border-color)' : '' }}>
                           {evt.strategyType}
                         </span>
                       </td>

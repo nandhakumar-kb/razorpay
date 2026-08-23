@@ -2,11 +2,10 @@
   --bg-color: #FFFFFF;
   --surface-color: #F8F8FA;
   --panel-bg: #FFFFFF;
-  
-  --primary-purple: #6822CC;
-  --primary-dark: #4B1A99;
-  --primary-light: #F1EBFF;
-  --primary-ultralight: #F8F5FF;
+  --primary-blue: #3366FF;
+  --primary-dark: #02042B;
+  --primary-light: #F0F4FF;
+  --primary-ultralight: #F8FAFF;
   
   --text-primary: #18181B;
   --text-secondary: #52525B;
@@ -191,7 +190,7 @@ tr:hover td {
 .badge.warning { background: #FEF3C7; color: var(--warning-color); }
 .badge.danger { background: #FEE2E2; color: var(--danger-color); }
 .badge.info { background: #DBEAFE; color: var(--info-color); }
-.badge.purple { background: var(--primary-light); color: var(--primary-purple); }
+.badge.blue { background: var(--primary-light); color: var(--primary-blue); }
 
 /* Buttons */
 .btn {
@@ -210,7 +209,7 @@ tr:hover td {
 }
 
 .btn-primary {
-  background-color: var(--primary-purple);
+  background-color: var(--primary-blue);
   color: #fff;
 }
 
@@ -230,7 +229,7 @@ tr:hover td {
 
 .btn-tertiary {
   background-color: transparent;
-  color: var(--primary-purple);
+  color: var(--primary-blue);
   padding: 0;
   height: auto;
 }
@@ -260,7 +259,7 @@ tr:hover td {
 }
 
 .nav-links a:hover {
-  color: var(--primary-purple);
+  color: var(--primary-blue);
 }
 
 /* Hero */
@@ -294,8 +293,8 @@ tr:hover td {
 
 .workflow-node.active {
   background: var(--primary-light);
-  border-color: var(--primary-purple);
-  color: var(--primary-purple);
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
 }
 
 /* Code block */
