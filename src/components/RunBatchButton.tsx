@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 
 export function RunBatchButton({ 
   action, 
@@ -11,28 +11,36 @@ export function RunBatchButton({
   label: string, 
   strategy: string 
 }) {
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
   const runAll = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
     let processed = 0;
-    while (true) {
-      const batchSize = await action();
-      if (batchSize === 0) break;
-      processed += batchSize;
-      setProgress(processed);
+    try {
+      while (true) {
+        const batchSize = await action();
+        if (batchSize === 0) break;
+        processed += batchSize;
+        setProgress(processed);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setProgress(0); // Reset after completion
+      setIsLoading(false);
     }
-    setProgress(0); // Reset after completion
   };
 
   return (
     <button 
-      onClick={() => startTransition(runAll)} 
-      disabled={isPending}
+      onClick={runAll} 
+      disabled={isLoading}
       className={`btn ${strategy === 'ai' ? 'btn-primary' : 'btn-outline'}`}
       style={{ width: '100%' }}
     >
-      {isPending ? `Processing... (${progress} done)` : label}
+      {isLoading ? `Processing... (${progress} done)` : label}
     </button>
   );
 }

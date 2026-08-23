@@ -7,7 +7,6 @@ const FAILURE_CAUSES = [
   { code: 'GATEWAY_ERROR', method: 'card', cause: 'gateway_timeout' },
   { code: 'BAD_REQUEST_ERROR', method: 'upi', cause: 'insufficient_funds' },
   { code: 'BAD_REQUEST_ERROR', method: 'netbanking', cause: 'bank_offline' },
-  { code: 'RISK_FLAGGED', method: 'card', cause: 'fraud_suspected' },
 ];
 
 async function main() {
@@ -29,9 +28,9 @@ async function main() {
 
   console.log(`Created ${customers.length} customers.`);
 
-  // 2. Generate 50 failed transactions
+  // 2. Generate 15 failed transactions
   const transactionsData = [];
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 15; i++) {
     const customer = customers[Math.floor(Math.random() * customers.length)];
     const failureTemplate = FAILURE_CAUSES[Math.floor(Math.random() * FAILURE_CAUSES.length)];
     const paymentType = Math.random() > 0.5 ? 'one_time' : 'subscription';

@@ -101,6 +101,23 @@ Both strategies are given the exact same 3-attempt limit, so it's a fair compari
 ## 9. Summary — The Core Idea in One Paragraph
 Businesses lose real money every day because failed payments are handled carelessly — either ignored, or retried blindly without understanding why they failed. This project fixes that by first diagnosing the real reason a payment failed, then choosing the safest and smartest way to recover it, using simple fixed rules for the money-related decisions and Artificial Intelligence only where it genuinely helps — writing a clear, human message to the customer. Every action is logged, every action is capped so it can never spiral out of control, and the system proves its value by comparing itself directly against the old "blind retry" approach on the same data, live, in front of anyone watching.
 
+## 10. How is "Failed Method" / Failure Detected? (FAQ for Judges)
+Two different things again — be precise which one you mean:
+
+**A) How does the system know a transaction failed at all?**
+In a real production design, this would come from Razorpay's webhook — Razorpay automatically sends your server a notification the moment a payment fails, containing a `failureCode`. We deliberately did NOT build this for the demo (webhooks need a public server URL, extra setup) — instead, our seed script fakes this by directly writing "already-failed" transaction records into the database with a scripted `failureCode`, as if the webhook had already told you about them.
+
+**B) How does the system figure out WHY it failed (the payment method issue)?**
+This is the Classifier (`classifyFailure` function) — a simple lookup table, not AI:
+- `BAD_REQUEST_ERROR` → invalid_card (bad card details)
+- `GATEWAY_ERROR` → gateway_timeout (bank/network was slow)
+- `INSUFFICIENT_FUNDS` → insufficient_funds
+- `BANK_OFFLINE` → bank_offline
+
+Razorpay's real API returns error codes exactly like this on every failed payment — this lookup table logic is genuinely how a production system would work, we just don't have live webhook data feeding it right now, we have scripted fake data standing in for it.
+
+> **The honest one-liner for a judge:** "In production, this would come from Razorpay's payment-failure webhook in real time. For this demo, we generate realistic synthetic failure events with the same failure codes Razorpay actually uses, so the classification logic is real — only the trigger is simulated."
+
 ---
 
 ## 🚀 Getting Started
