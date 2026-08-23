@@ -2,7 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { runRecoveryPipeline, executeRecoveryAction } from '@/lib/pipeline';
 import { revalidatePath } from 'next/cache';
 import { RunBatchButton } from '@/components/RunBatchButton';
-import { Activity, ArrowRight, ShieldCheck, Cpu, BrainCircuit, Search, CheckCircle2, AlertTriangle, Info, ShieldAlert } from 'lucide-react';
+import { AuditTrail } from '@/components/AuditTrail';
+import { ShieldCheck, BrainCircuit, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,20 +14,20 @@ async function fetchStats() {
       orderBy: { createdAt: 'desc' }
     });
 
-  const naiveEvents = events.filter((e: any) => e.strategyType === 'naive');
-  const aiEvents = events.filter((e: any) => e.strategyType === 'ai');
-  const approvalQueue = events.filter((e: any) => e.actionStatus === 'pending_approval');
+    const naiveEvents = events.filter((e: any) => e.strategyType === 'naive');
+    const aiEvents = events.filter((e: any) => e.strategyType === 'ai');
+    const approvalQueue = events.filter((e: any) => e.actionStatus === 'pending_approval');
 
-  const calcStats = (evts: typeof events, eventType?: string) => {
-    const filtered = eventType ? evts.filter((e: any) => e.transaction.eventType === eventType) : evts;
-    const total = filtered.length;
-    const recovered = filtered.filter((e: any) => e.outcome === 'recovered').length;
-    const rate = total > 0 ? ((recovered / total) * 100).toFixed(1) : '0.0';
-    const amountProtected = filtered.reduce((sum: number, e: any) => sum + e.transaction.amount, 0);
-    const amountRecovered = filtered.filter((e: any) => e.outcome === 'recovered').reduce((sum: number, e: any) => sum + e.transaction.amount, 0);
-    
-    return { total, recovered, rate, amountProtected, amountRecovered };
-  };
+    const calcStats = (evts: typeof events, eventType?: string) => {
+      const filtered = eventType ? evts.filter((e: any) => e.transaction.eventType === eventType) : evts;
+      const total = filtered.length;
+      const recovered = filtered.filter((e: any) => e.outcome === 'recovered').length;
+      const rate = total > 0 ? ((recovered / total) * 100).toFixed(1) : '0.0';
+      const amountProtected = filtered.reduce((sum: number, e: any) => sum + e.transaction.amount, 0);
+      const amountRecovered = filtered.filter((e: any) => e.outcome === 'recovered').reduce((sum: number, e: any) => sum + e.transaction.amount, 0);
+      
+      return { total, recovered, rate, amountProtected, amountRecovered };
+    };
 
     return {
       naive: calcStats(naiveEvents),
@@ -41,7 +42,7 @@ async function fetchStats() {
         checkout_abandonment: calcStats(aiEvents, 'checkout_abandonment'),
         overdue_receivable: calcStats(aiEvents, 'overdue_receivable'),
       },
-      events: events.slice(0, 50),
+      events: events,
       approvalQueue,
       error: null,
     };
@@ -50,6 +51,7 @@ async function fetchStats() {
     return {
       naive: { total: 0, recovered: 0, rate: '0.0', amountProtected: 0, amountRecovered: 0 },
       ai: { total: 0, recovered: 0, rate: '0.0', amountProtected: 0, amountRecovered: 0 },
+      naiveByEvent: {}, aiByEvent: {},
       events: [],
       approvalQueue: [],
       error: error.message || "Failed to connect to database.",
@@ -81,15 +83,12 @@ export default async function Dashboard() {
       where: { id: eventId },
       data: { actionStatus: 'approved' }
     });
-    // Immediately execute after approval
     await executeRecoveryAction(eventId);
     revalidatePath('/');
   };
 
-  const simulatePayment = async (formData: FormData) => {
+  const simulateAction = async (eventId: string) => {
     'use server';
-    const eventId = formData.get('eventId') as string;
-    
     const event = await prisma.recoveryEvent.findUnique({ where: { id: eventId } });
     if (!event || event.outcome !== 'pending') return;
 
@@ -115,6 +114,10 @@ export default async function Dashboard() {
     revalidatePath('/');
   };
 
+  const deltaRate = (parseFloat(stats.ai.rate) - parseFloat(stats.naive.rate)).toFixed(1);
+  const deltaRecovered = stats.ai.amountRecovered - stats.naive.amountRecovered;
+  const isDataAvailable = stats.events.length > 0;
+
   return (
     <>
       <nav className="navbar">
@@ -128,53 +131,40 @@ export default async function Dashboard() {
            <a href="#" style={{ color: 'var(--primary-blue)', fontWeight: 600 }}>AI Infrastructure</a>
            <a href="#">Developers</a>
         </div>
-        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-           <a href="#" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--primary-blue)' }}>Sign in</a>
-           <button className="btn btn-primary">Get Started</button>
-        </div>
       </nav>
 
       <div className="container">
         
-        {/* HERO SECTION */}
-        <div className="hero-section">
-           <div>
-             <div style={{ color: 'var(--primary-blue)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BrainCircuit size={16} /> BUILT AI NATIVE
-             </div>
-             <h1 className="hero-title">AI that turns payments into decisions.</h1>
-             <p style={{ fontSize: '18px', color: 'var(--text-secondary)', marginBottom: '32px', maxWidth: '480px' }}>
-                Recover failed payments before they become lost revenue. AI detects the failure, identifies the cause and recommends the safest recovery action.
-             </p>
-             <div style={{ display: 'flex', gap: '16px' }}>
-               <button className="btn btn-primary">Try the product <ArrowRight size={16} /></button>
-               <button className="btn btn-outline">View Architecture</button>
-             </div>
-           </div>
-           
-           <div style={{ background: 'var(--surface-color)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>
-              <h3 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '32px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, textAlign: 'center' }}>Agentic Recovery Workflow</h3>
-              <div className="ai-workflow" style={{ justifyContent: 'center' }}>
-                 <div className="workflow-node"><Activity size={16} /> Input</div>
-                 <ArrowRight size={16} style={{ color: 'var(--border-color)' }} />
-                 <div className="workflow-node active" style={{ boxShadow: '0 4px 12px rgba(51, 102, 255, 0.15)' }}><BrainCircuit size={16} /> AI Agent</div>
-                 <ArrowRight size={16} style={{ color: 'var(--border-color)' }} />
-                 <div className="workflow-node"><Search size={16} /> Decision</div>
-                 <ArrowRight size={16} style={{ color: 'var(--border-color)' }} />
-                 <div className="workflow-node"><Cpu size={16} /> Action</div>
-                 <ArrowRight size={16} style={{ color: 'var(--border-color)' }} />
-                 <div className="workflow-node"><ShieldCheck size={16} /> Audit</div>
-              </div>
-           </div>
+        {/* HERO STRIP */}
+        <div style={{ padding: '64px 0 48px', textAlign: 'center', borderBottom: '1px solid var(--border-color)', marginBottom: '48px' }}>
+          {isDataAvailable ? (
+            <>
+              <h1 style={{ fontSize: '48px', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.03em' }}>
+                ₹{(stats.ai.amountRecovered / 100).toLocaleString()} recovered out of ₹{(stats.ai.amountProtected / 100).toLocaleString()} at risk
+              </h1>
+              <p style={{ fontSize: '18px', color: 'var(--text-secondary)' }}>
+                That's ₹{(stats.ai.amountRecovered / 100).toLocaleString()} more than doing nothing, and ₹{(deltaRecovered > 0 ? deltaRecovered / 100 : 0).toLocaleString()} more than blindly retrying every failure the same way.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 style={{ fontSize: '48px', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.03em', color: 'var(--text-muted)' }}>
+                Run a batch below to see real results
+              </h1>
+              <p style={{ fontSize: '18px', color: 'var(--text-secondary)' }}>
+                The dashboard will update to show actual recovery metrics once synthetic data is processed.
+              </p>
+            </>
+          )}
         </div>
 
         {/* DASHBOARD SECTION */}
-        <div className="dashboard-container">
+        <div className="dashboard-container" style={{ paddingTop: 0 }}>
           
-          <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+          <div style={{ marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
-              <h2 className="section-title" style={{ marginBottom: '8px' }}>Executive Dashboard</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>Real-time recovery metrics and intelligence oversight.</p>
+              <h2 className="section-title" style={{ marginBottom: '8px' }}>Performance Comparison</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>Analyzing the difference between rules-based fallbacks and AI routing.</p>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle2 size={14} color="var(--success-color)" /> System Online</div>
@@ -186,74 +176,111 @@ export default async function Dashboard() {
             <div className="card" style={{ backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', marginBottom: '32px' }}>
               <h3 style={{ color: 'var(--danger-color)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}><AlertTriangle size={18} /> Database Connection Error</h3>
               <p style={{ color: '#7F1D1D', fontSize: '14px' }}>{stats.error}</p>
-              <p style={{ marginTop: '12px', fontSize: '13px', color: '#991B1B' }}>
-                <strong>How to fix:</strong> Ensure you have added <code>DATABASE_URL</code> to your environment variables and pushed your schema using <code>npx prisma db push</code>.
-              </p>
             </div>
           )}
 
           {/* METRICS CARDS */}
           <div className="grid-2" style={{ marginBottom: '48px' }}>
-            {['naive', 'ai'].map((strat) => {
-              const isAI = strat === 'ai';
-              const sData = isAI ? stats.ai : stats.naive;
-              const sByEvent = isAI ? stats.aiByEvent : stats.naiveByEvent;
+            {/* NAIVE PANEL */}
+            <div className="card">
+              <div style={{ marginBottom: '24px' }}>
+                <h3 className="card-title">Naive Baseline</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Retries every failure the same way, regardless of reason.</p>
+              </div>
+
+              <div className="grid-2" style={{ marginBottom: '24px' }}>
+                <div className="stat-box">
+                  <span className="stat-label">Total Recovery Rate</span>
+                  <span className="stat-value">{stats.naive.rate}%</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{stats.naive.recovered} / {stats.naive.total} events</span>
+                </div>
+                <div className="stat-box">
+                  <span className="stat-label">Total Amount Recovered</span>
+                  <span className="stat-value">₹{(stats.naive.amountRecovered / 100).toLocaleString()}</span>
+                </div>
+              </div>
               
-              return (
-                <div key={strat} className="card" style={isAI ? { border: '1px solid var(--primary-light)', background: 'radial-gradient(circle at 100% 0%, var(--primary-ultralight), #FFFFFF 60%)' } : {}}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-                    <h3 className="card-title" style={isAI ? { color: 'var(--primary-dark)', display: 'flex', alignItems: 'center', gap: '8px' } : {}}>
-                      {isAI ? <BrainCircuit size={18} color="var(--primary-blue)" /> : null}
-                      {isAI ? 'AI Strategy' : 'Naive Baseline Strategy'}
-                    </h3>
-                    {isAI && <span className="badge blue" style={{ fontSize: '11px' }}>Recommended</span>}
-                  </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Total Protected: ₹{(stats.naive.amountProtected / 100).toLocaleString()}
+                </div>
+                <RunBatchButton action={runNaive} label="Run Naive Batch" strategy="naive" />
+              </div>
+            </div>
 
-                  <div className="grid-2" style={{ marginBottom: '24px' }}>
-                    <div className="stat-box">
-                      <span className="stat-label" style={isAI ? { color: 'var(--primary-blue)' } : {}}>Total Recovery Rate</span>
-                      <span className="stat-value" style={isAI ? { color: 'var(--primary-dark)' } : { color: 'var(--text-primary)' }}>{sData.rate}%</span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{sData.recovered} / {sData.total} events</span>
-                    </div>
-                    <div className="stat-box">
-                      <span className="stat-label" style={isAI ? { color: 'var(--primary-blue)' } : {}}>Total Amount Recovered</span>
-                      <span className="stat-value" style={isAI ? { color: 'var(--primary-dark)' } : { color: 'var(--text-primary)' }}>₹{(sData.amountRecovered / 100).toLocaleString()}</span>
-                    </div>
-                  </div>
-                  
-                  <div style={{ marginBottom: '24px' }}>
-                     <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '12px' }}>Breakdown by Event Type</h4>
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {['payment_failure', 'checkout_abandonment', 'overdue_receivable'].map(evtType => {
-                          const evData = sByEvent[evtType as keyof typeof sByEvent];
-                          return (
-                            <div key={evtType} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '8px', background: 'var(--surface-color)', borderRadius: '6px' }}>
-                               <span style={{ color: 'var(--text-secondary)' }}>{evtType.replace('_', ' ')}</span>
-                               <span style={{ fontWeight: 600 }}>{evData.rate}% <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '11px' }}>({evData.recovered}/{evData.total})</span></span>
-                            </div>
-                          );
-                        })}
-                     </div>
-                  </div>
+            {/* AI PANEL */}
+            <div className="card" style={{ border: '2px solid var(--primary-blue)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+                <div>
+                  <h3 className="card-title" style={{ color: 'var(--primary-dark)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <BrainCircuit size={18} color="var(--primary-blue)" /> AI Strategy
+                  </h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Diagnoses the reason first, then picks the right fix for that specific reason.</p>
+                </div>
+              </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                      Total Protected: ₹{(sData.amountProtected / 100).toLocaleString()}
-                    </div>
-                    <RunBatchButton action={isAI ? runAI : runNaive} label={isAI ? "Run AI Pipeline Batch" : "Run Naive Batch"} strategy={strat} />
+              <div className="grid-2" style={{ marginBottom: '24px' }}>
+                <div className="stat-box">
+                  <span className="stat-label" style={{ color: 'var(--primary-blue)' }}>Total Recovery Rate</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span className="stat-value" style={{ color: 'var(--primary-dark)' }}>{stats.ai.rate}%</span>
+                    {isDataAvailable && parseFloat(deltaRate) > 0 && (
+                      <span className="badge success" style={{ fontSize: '12px' }}>+{deltaRate} pts</span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{stats.ai.recovered} / {stats.ai.total} events</span>
+                </div>
+                <div className="stat-box">
+                  <span className="stat-label" style={{ color: 'var(--primary-blue)' }}>Total Amount Recovered</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span className="stat-value" style={{ color: 'var(--primary-dark)' }}>₹{(stats.ai.amountRecovered / 100).toLocaleString()}</span>
+                    {isDataAvailable && deltaRecovered > 0 && (
+                      <span className="badge success" style={{ fontSize: '12px' }}>+₹{(deltaRecovered / 100).toLocaleString()}</span>
+                    )}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Total Protected: ₹{(stats.ai.amountProtected / 100).toLocaleString()}
+                </div>
+                <RunBatchButton action={runAI} label="Run AI Pipeline Batch" strategy="ai" />
+              </div>
+            </div>
           </div>
+
+          {/* AI INFO PANEL */}
+          <details className="card" style={{ marginBottom: '48px', padding: '24px', cursor: 'pointer' }}>
+            <summary style={{ fontWeight: 600, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', outline: 'none' }}>
+              <BrainCircuit size={18} /> How this works
+            </summary>
+            <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                 <span className="badge" style={{ background: 'var(--surface-color)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>Rules-based</span>
+                 <p style={{ fontSize: '14px', color: 'var(--text-primary)' }}>We read the failure reason and match it to a known cause.</p>
+               </div>
+               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                 <span className="badge" style={{ background: 'var(--surface-color)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>Rules-based</span>
+                 <p style={{ fontSize: '14px', color: 'var(--text-primary)' }}>We look up the safest action for that cause — never invented, always from a fixed, capped list.</p>
+               </div>
+               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                 <span className="badge blue">AI-powered</span>
+                 <p style={{ fontSize: '14px', color: 'var(--text-primary)' }}>We write a clear, personalized message explaining what happened and what to do next.</p>
+               </div>
+            </div>
+          </details>
 
           {/* APPROVAL QUEUE */}
           {stats.approvalQueue.length > 0 && (
             <div className="card" style={{ marginBottom: '48px', borderColor: 'var(--warning-color)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <ShieldAlert size={20} color="var(--warning-color)" />
-                <h3 className="card-title" style={{ margin: 0, color: 'var(--warning-color)' }}>Pending Approvals (High Value)</h3>
+                <h3 className="card-title" style={{ margin: 0, color: 'var(--warning-color)' }}>Pending Approvals</h3>
               </div>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                These are high-value cases (over ₹4,000) where the system pauses and waits for a person to approve before acting — it never auto-executes large amounts alone.
+              </p>
               <div className="table-container">
                 <table>
                   <thead>
@@ -261,27 +288,25 @@ export default async function Dashboard() {
                       <th>Customer</th>
                       <th>Amount</th>
                       <th>Diagnosis</th>
-                      <th>Proposed Action</th>
-                      <th>AI Reasoning</th>
                       <th>Action</th>
+                      <th>Approve</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stats.approvalQueue.map((evt: any) => (
                       <tr key={evt.id}>
-                        <td style={{ fontWeight: 500 }}>{evt.transaction.customer.name}</td>
-                        <td style={{ color: 'var(--primary-blue)', fontWeight: 600 }}>₹{evt.transaction.amount / 100}</td>
-                        <td><span className="badge" style={{ background: 'var(--surface-color)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>{evt.diagnosis}</span></td>
-                        <td>{evt.actionTaken}</td>
-                        <td style={{ fontSize: '13px', maxWidth: '300px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{evt.reasoningLog}</td>
-                        <td>
-                          <form action={approveEvent}>
-                            <input type="hidden" name="eventId" value={evt.id} />
-                            <button className="btn btn-primary" style={{ padding: '0 12px', height: '32px', fontSize: '12px' }}>
-                              Approve Live
-                            </button>
-                          </form>
-                        </td>
+                         <td style={{ fontWeight: 500 }}>{evt.transaction.customer.name}</td>
+                         <td style={{ color: 'var(--primary-blue)', fontWeight: 600 }}>₹{evt.transaction.amount / 100}</td>
+                         <td>{evt.diagnosis}</td>
+                         <td>{evt.actionTaken}</td>
+                         <td>
+                           <form action={approveEvent}>
+                             <input type="hidden" name="eventId" value={evt.id} />
+                             <button className="btn btn-primary" style={{ padding: '0 12px', height: '32px', fontSize: '12px' }}>
+                               Approve Live
+                             </button>
+                           </form>
+                         </td>
                       </tr>
                     ))}
                   </tbody>
@@ -291,82 +316,9 @@ export default async function Dashboard() {
           )}
 
           {/* AUDIT TRAIL */}
-          <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h3 className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}><ShieldCheck size={18} /> Audit Trail</h3>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Info size={14} /> Showing latest 50 events
-              </div>
-            </div>
-            
-            <div style={{ background: '#F8FAFC', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-               <strong>Legend:</strong> 
-               <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
-                 <li><span style={{ fontWeight: 600 }}>Status:</span> Indicates whether the system successfully executed the selected action (e.g. creating the payment link).</li>
-                 <li><span style={{ fontWeight: 600 }}>Outcome:</span> The final real-world result. For example, if a human escalation is successfully sent, its Status is <em>'executed'</em> but its Outcome is <em>'escalated'</em>. A link successfully generated stays <em>'pending'</em> until paid.</li>
-               </ul>
-            </div>
-            
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Txn ID</th>
-                    <th>Event Type</th>
-                    <th>Strategy</th>
-                    <th>Diagnosis</th>
-                    <th>Action</th>
-                    <th>Status</th>
-                    <th>Outcome</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.events.map((evt: any) => (
-                    <tr key={evt.id}>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-secondary)' }}>{evt.transactionId.substring(0, 8)}...</td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-secondary)' }}>{evt.transaction.eventType.replace('_', ' ')}</td>
-                      <td>
-                        <span className={`badge ${evt.strategyType === 'ai' ? 'blue' : ''}`} style={{ background: evt.strategyType !== 'ai' ? 'var(--surface-color)' : '', color: evt.strategyType !== 'ai' ? 'var(--text-secondary)' : '', border: evt.strategyType !== 'ai' ? '1px solid var(--border-color)' : '' }}>
-                          {evt.strategyType}
-                        </span>
-                      </td>
-                      <td>{evt.diagnosis || '-'}</td>
-                      <td>{evt.actionTaken}</td>
-                      <td>
-                        <span className={`badge ${evt.actionStatus === 'approved' || evt.actionStatus === 'executed' ? 'success' : evt.actionStatus === 'pending_approval' ? 'warning' : evt.actionStatus === 'failed' ? 'danger' : 'info'}`}>
-                          {evt.actionStatus.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span className={`badge ${evt.outcome === 'recovered' ? 'success' : evt.outcome === 'escalated' ? 'danger' : evt.outcome === 'skipped' ? 'warning' : 'info'}`}>
-                            {evt.outcome}
-                          </span>
-                          {evt.outcome === 'pending' && evt.actionStatus !== 'failed' && (
-                            <form action={simulatePayment}>
-                              <input type="hidden" name="eventId" value={evt.id} />
-                              <button className="btn btn-outline" style={{ padding: '0 8px', height: '24px', fontSize: '11px' }}>
-                                Simulate Pay
-                              </button>
-                            </form>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {stats.events.length === 0 && (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '64px', color: 'var(--text-muted)' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                          <Activity size={32} color="var(--border-color)" />
-                          No recovery events found. Run a batch above.
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div>
+            <h3 className="section-title" style={{ marginBottom: '24px', fontSize: '24px' }}>Audit Trail</h3>
+            <AuditTrail events={stats.events} simulateAction={simulateAction} />
           </div>
           
         </div>
