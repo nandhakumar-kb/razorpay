@@ -6,8 +6,8 @@ An autonomous, deterministic, and auditable pipeline designed to recover failed 
 
 - **Synthetic Data Generation**: Automatically seed your local database with 50+ failed transactions using realistic Razorpay failure code distributions.
 - **Deterministic Classification & Strategy Engine**: 
-  - Accurately maps failure codes (e.g., `BAD_REQUEST_ERROR`) to underlying causes (e.g., `invalid_card`, `insufficient_funds`).
-  - Decides the next best action (`create_payment_link`, `trigger_mandate_retry`) based on payment types (one-time vs. subscription), **respecting a hard 3-attempt cap per transaction before forced escalation**.
+  - Accurately maps failure codes (e.g., `BAD_REQUEST_ERROR`, `RISK_FLAGGED`) to underlying causes (e.g., `invalid_card`, `insufficient_funds`, `fraud_suspected`).
+  - Decides the next best action (`create_payment_link`, `trigger_mandate_retry`, or immediate `escalate` for fraud) based on payment types (one-time vs. subscription) and risk flags, **respecting a hard 3-attempt cap per transaction before forced escalation**.
 - **Continuous Learning Loop**: Every outcome is written back to a `SuccessRates` table to actively track the conversion % of each (cause, action) pair over time.
 - **Idempotency & Auditing**: Guarantees that actions are never duplicated on the same failed transaction. Every step (diagnosis, action, reasoning) is tracked in an `Audit Trail`.
 - **Human Approval Gates vs. Escalation**: 
@@ -62,7 +62,7 @@ Populate the `.env` file at the root of the project with your keys:
 RAZORPAY_KEY_ID=your_key_here
 RAZORPAY_KEY_SECRET=your_secret_here
 GEMINI_API_KEY=your_gemini_key
-DATABASE_URL="file:./dev.db"  # Use postgresql string if deploying!
+DATABASE_URL=postgres://user:password@host:port/db_name
 ```
 
 ### 3. Install Dependencies
@@ -71,7 +71,7 @@ npm install
 ```
 
 ### 4. Initialize Database & Seed
-Push the Prisma schema to generate the SQLite database, and then seed it with synthetic data.
+Push the Prisma schema to generate the Postgres database schema, and then seed it with synthetic data.
 ```bash
 npx prisma db push
 npx tsx scripts/seed.ts
@@ -96,7 +96,7 @@ This command automatically wipes the current database tables and reseeds them wi
 - **Compliance Rules**: Our compliance rules (e.g., retry limits, mandate windows) are modeled after publicly documented NPCI/Razorpay guidelines for demonstration purposes. In production, this would need strict legal and compliance sign-off.
 
 ## 🔧 Deployment Notes (Vercel)
-If you plan to deploy this on a serverless provider like Vercel, **you cannot use SQLite** as the `.db` file is ephemeral.
-1. Change the `provider = "sqlite"` to `provider = "postgresql"` in `prisma/schema.prisma`.
-2. Update the `DATABASE_URL` in `.env` to point to a hosted Postgres instance (like Neon, Supabase, or Vercel Postgres).
-3. Run `npx prisma db push` to initialize the production database.
+This project is built and optimized for Vercel and Vercel Postgres.
+1. The project uses `provider = "postgresql"` in `prisma/schema.prisma`.
+2. Connect a Vercel Postgres database to your project in the Vercel Dashboard. Vercel will automatically inject connection strings (e.g., `POSTGRES_URL`). We have configured the schema to look for these environment variables.
+3. After deployment, run `npx prisma db push` and `npm run demo:reset` to populate your live database with the synthetic hackathon data!
