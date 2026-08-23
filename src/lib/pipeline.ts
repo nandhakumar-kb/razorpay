@@ -155,7 +155,7 @@ export async function executeRecoveryAction(eventId: string) {
         transaction.customer.name,
         transaction.customer.contact || '',
         `Recovery for failed payment`,
-        transaction.id
+        `${transaction.id}-${event.strategyType}`
       );
 
       reasoningLog += `\n[MOCKED SMS SENT]: "${message}"\nPayment Link created: ${link.short_url}`;
@@ -167,6 +167,9 @@ export async function executeRecoveryAction(eventId: string) {
     } else if (event.actionTaken === 'escalate') {
       reasoningLog += `\nEscalated to human review. No automatic retry attempted.`;
       outcome = 'escalated';
+    } else if (event.actionTaken === 'none') {
+      reasoningLog += `\nNo recovery action available.`;
+      outcome = 'skipped';
     }
 
     await prisma.recoveryEvent.update({

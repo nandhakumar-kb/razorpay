@@ -14,11 +14,11 @@ export function classifyFailure(failureCode: string | null): FailureCause {
     return 'invalid_card';
   }
   
-  if (code.includes('GATEWAY_ERROR')) {
+  if (code.includes('GATEWAY_ERROR') || code.includes('SERVER_ERROR') || code.includes('TIMEOUT')) {
     return 'gateway_timeout';
   }
   
-  if (code.includes('INSUFFICIENT_FUNDS')) {
+  if (code.includes('INSUFFICIENT_FUNDS') || code.includes('BALANCE')) {
     return 'insufficient_funds';
   }
   

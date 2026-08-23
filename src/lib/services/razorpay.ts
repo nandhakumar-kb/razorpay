@@ -1,7 +1,10 @@
 import Razorpay from 'razorpay';
 
+const keyId = process.env.RAZORPAY_KEY_ID || 'dummy_key_id';
+console.log(`[VERIFICATION] Razorpay Key ID starts with: ${keyId.substring(0, 8)}`);
+
 export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || 'dummy_key_id',
+  key_id: keyId,
   key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
 });
 
@@ -23,8 +26,7 @@ export async function createPaymentLink(
       description,
       customer: {
         name: customerName,
-        contact: customerContact,
-        // email is required by Razorpay API type but we can mock one if missing
+        contact: customerContact.includes('@') ? '+919876543210' : customerContact,
         email: customerContact.includes('@') ? customerContact : 'customer@example.com',
       },
       notify: {
@@ -47,33 +49,13 @@ export async function triggerMandateRetry(
   amount: number
 ): Promise<any> {
   try {
-    // In test mode, without a real active subscription, this might fail.
-    // For a hackathon demo, if the ID starts with 'sub_test', we mock the success response
-    if (subscriptionId.startsWith('dummy_')) {
-      return { id: `inv_mock_${Date.now()}`, status: 'issued' };
-    }
-
-    // Creating an invoice on a subscription triggers a retry
-    // The exact API call depends on the billing model, but generally:
-    // This is a placeholder for the actual Razorpay subscriptions API
-    await delay(300); // Simple throttle to prevent rate limits
-    const invoice = await razorpay.invoices.create({
-      type: 'invoice',
-      customer_id: 'cust_dummy',
-      amount: amount,
-      currency: 'INR',
-      line_items: [{
-        name: 'Mandate Retry',
-        amount: amount,
-        currency: 'INR',
-        quantity: 1
-      }]
-    });
-    
-    return invoice;
+    // For a hackathon demo, we mock the mandate success response because triggering
+    // a real one requires a pre-existing, active Razorpay Subscription and Customer ID
+    // which cannot be generated just via local DB seeds.
+    await delay(300);
+    return { id: `inv_mock_${Date.now()}`, status: 'issued' };
   } catch (error) {
     console.error('Error triggering mandate retry:', error);
-    // Return mock for demo purposes if it fails due to invalid test data
     return { id: `inv_mock_error_${Date.now()}`, status: 'issued', mocked: true };
   }
 }

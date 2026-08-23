@@ -7,6 +7,7 @@ const FAILURE_CAUSES = [
   { code: 'GATEWAY_ERROR', method: 'card', cause: 'gateway_timeout' },
   { code: 'BAD_REQUEST_ERROR', method: 'upi', cause: 'insufficient_funds' },
   { code: 'BAD_REQUEST_ERROR', method: 'netbanking', cause: 'bank_offline' },
+  { code: 'RISK_FLAGGED', method: 'card', cause: 'fraud_suspected' },
 ];
 
 async function main() {
