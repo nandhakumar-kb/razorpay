@@ -1,5 +1,5 @@
 import { prisma } from './prisma';
-import { classifyFailure } from './engines/classifier';
+import { classifyFailure, classifyAbandonment, classifyOverdue } from './engines/classifier';
 import { determineAction } from './engines/strategy';
 import { determineNaiveAction } from './engines/strategyNaive';
 import { composeRecoveryMessage } from './agents/messageComposer';
@@ -44,19 +44,27 @@ export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
     let confidence: number | null = null;
     let reasoningLog = '';
 
+    // Route to appropriate classifier
+    if (transaction.eventType === 'payment_failure') {
+      cause = classifyFailure(transaction.failureCode);
+    } else if (transaction.eventType === 'checkout_abandonment') {
+      cause = classifyAbandonment(transaction.failureCode);
+    } else if (transaction.eventType === 'overdue_receivable') {
+      cause = classifyOverdue(transaction.failureCode);
+    }
+
     if (strategy === 'naive') {
-      cause = classifyFailure(transaction.failureCode);
-      action = determineNaiveAction(transaction.retryCount, transaction.paymentType);
-      reasoningLog = `Naive strategy: Ignored cause. Selected action '${action}' based solely on payment type (${transaction.paymentType}).`;
+      action = determineNaiveAction(transaction.retryCount, transaction.paymentType, transaction.eventType);
+      reasoningLog = `Naive strategy: Ignored cause. Selected action '${action}' based on event type (${transaction.eventType}) and payment type (${transaction.paymentType}).`;
     } else {
-      cause = classifyFailure(transaction.failureCode);
       action = determineAction({
-        cause: cause as any,
+        cause: cause,
         retryCount: transaction.retryCount,
         paymentType: transaction.paymentType,
         amount: transaction.amount,
+        eventType: transaction.eventType,
       });
-      reasoningLog = `AI strategy: Detected cause '${cause}'. Selected action '${action}' based on retry count (${transaction.retryCount}) and payment type (${transaction.paymentType}).`;
+      reasoningLog = `AI strategy: Detected cause '${cause}'. Selected action '${action}' based on retry count (${transaction.retryCount}), event type (${transaction.eventType}) and payment type (${transaction.paymentType}).`;
     }
 
     const requiresApproval =
@@ -154,7 +162,7 @@ export async function executeRecoveryAction(eventId: string) {
         transaction.amount,
         transaction.customer.name,
         transaction.customer.contact || '',
-        `Recovery for failed payment`,
+        `Recovery for ${transaction.eventType.replace('_', ' ')}`,
         `${transaction.id.slice(0, 30)}-${event.strategyType === 'naive' ? 'n' : 'a'}`
       );
 

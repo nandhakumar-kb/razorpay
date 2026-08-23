@@ -32,3 +32,23 @@ export function classifyFailure(failureCode: string | null): FailureCause {
 
   return 'unknown';
 }
+
+export type AbandonmentCause = 'cart_abandoned' | 'checkout_timeout' | 'unknown';
+
+export function classifyAbandonment(code: string | null): AbandonmentCause {
+  if (!code) return 'unknown';
+  const c = code.toUpperCase();
+  if (c.includes('TIMEOUT')) return 'checkout_timeout';
+  if (c.includes('ABANDONED')) return 'cart_abandoned';
+  return 'unknown';
+}
+
+export type OverdueCause = 'invoice_expired' | 'unpaid_30_days' | 'unknown';
+
+export function classifyOverdue(code: string | null): OverdueCause {
+  if (!code) return 'unknown';
+  const c = code.toUpperCase();
+  if (c.includes('EXPIRED')) return 'invoice_expired';
+  if (c.includes('30_DAYS')) return 'unpaid_30_days';
+  return 'unknown';
+}

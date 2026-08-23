@@ -23,6 +23,8 @@ model Transaction {
   amount          Int             // Amount in paise (1 INR = 100 paise)
   method          String          // e.g., 'card', 'upi', 'netbanking'
   paymentType     String          // 'one_time' or 'subscription'
+  eventType       String          @default("payment_failure") // 'payment_failure', 'checkout_abandonment', 'overdue_receivable'
+  dueDate         DateTime?
   status          String          // 'failed', 'recovered', etc.
   failureCode     String?
   createdAt       DateTime        @default(now())

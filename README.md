@@ -91,6 +91,14 @@ Both strategies are given the exact same 3-attempt limit, so it's a fair compari
 | AI / Language Model | Google Gemini API | Writes the personalized recovery message and summarizes unresolved cases in plain English |
 | Hosting | Vercel | Makes the dashboard available on the internet, live, for anyone to try |
 
+## Key Features
+
+1. **Agentic Strategy Orchestration**: Routes failed events through a deterministic fallback layer before invoking the LLM.
+2. **Context-Aware Decisions**: Analyzes customer plan, past behavior, and reason codes to select the safest recovery action (Retry Mandate, Create Payment Link, Escalate to Human).
+3. **Generative Drafts**: Synthesizes localized, empathetic SMS/Email recovery messages tailored to the specific failure context and customer value.
+4. **Idempotent Pipeline**: Ensures customers are never spammed twice for the same event via hard state tracking.
+5. **Simulated Sandbox Data**: Realistic generated datasets covering `payment_failure`, `checkout_abandonment`, and `overdue_receivable` scenarios.
+
 ## 8. How Efficient Is It?
 - **Speed**: Each failed payment is processed in a few seconds — the rule-based steps (diagnosis, decision) are near-instant; only the AI message-writing step takes a moment.
 - **Cost**: The AI is only used for writing messages and summaries, not for every decision — this keeps the cost per recovery attempt very small (a fraction of a rupee), since the expensive AI reasoning is not wasted on tasks a simple rule can do just as well or better.
@@ -162,10 +170,20 @@ npm run demo:reset
 ```
 This command automatically wipes the current database tables and reseeds them with exactly 50 fresh failed transactions so you can run the batch cleanly again on stage.
 
-## ⚠️ Known Limitations
-- **Simulated Real-World Outcomes**: We use Razorpay's real test-mode APIs for every action, but test-mode success/failure is determined by which test card we use. Therefore, we model realistic outcome probabilities rather than claiming real bank behavior.
-- **Mocked Messaging**: We do not send real SMS/WhatsApp messages in this demo. We show the AI-drafted message and log it as sent, since actual messaging infrastructure is a separate product integration.
-- **Compliance Rules**: Our compliance rules (e.g., retry limits, mandate windows) are modeled after publicly documented NPCI/Razorpay guidelines for demonstration purposes. In production, this would need strict legal and compliance sign-off.
+## What AI Actually Does
+
+To ensure maximum safety and reliability in a fintech context, this architecture enforces a strict boundary between deterministic rules and generative AI:
+- **What is Deterministic**: Classification of failure codes, hard-cap retries (e.g., maximum 3 attempts), event routing (`payment_failure` vs `checkout_abandonment`), and final decision-making boundaries.
+- **What is AI/LLM**: Drafting the actual contextual recovery messages (SMS/email) and summarizing the reasoning/audit trail for the executive dashboard. AI cannot bypass the 3-retry limit, nor can it hallucinate a new action type outside the schema.
+
+## Known Limitations (For Judges)
+
+Because this is a hackathon prototype:
+- **Simulated Triggers**: In a real system, Razorpay Webhooks would trigger the pipeline. Here, `seed.ts` generates synthetic failures and the dashboard manually initiates the batch.
+- **Mocked Notifications**: While the LLM generates the SMS/Email text, we don't actually trigger Twilio/SendGrid to send them. They are logged to the database audit trail instead.
+- **Rate Limit Mocking**: Razorpay Test Mode has a hard limit of 30 payment links per account. To ensure the demo works reliably during judging, any `RATE_LIMIT_EXCEEDED` error from the Razorpay SDK is caught, and a mocked link URL is saved to the database.
+- **Synthetic Data Sets**: The Checkout Abandonment and Overdue Receivable datasets are fully synthetic; there is no real invoice tracking or frontend session tracking underlying them.
+- **Compliance**: The recovery strategies reflect common-sense best practices, not verified Razorpay compliance guidelines.
 
 ## 🔧 Deployment Notes (Vercel)
 This project is built and optimized for Vercel and Vercel Postgres.

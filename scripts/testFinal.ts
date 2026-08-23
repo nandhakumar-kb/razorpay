@@ -1,49 +1,38 @@
 import { prisma } from '../src/lib/prisma';
-import { runRecoveryPipeline } from '../src/lib/pipeline';
-
-
-async function runFullBatch(strategy: 'naive' | 'ai') {
-  let totalProcessed = 0;
-  while (true) {
-    const processed = await runRecoveryPipeline(strategy);
-    if (processed === 0) break;
-    totalProcessed += processed;
-  }
-  return totalProcessed;
-}
+import { runFullBatch } from '../src/lib/pipeline';
 
 async function main() {
-  console.log("Starting Naive Batch...");
-  await runFullBatch('naive');
+  console.log('--- STARTING VERIFICATION RUN ---');
   
-  console.log("Starting AI Batch...");
-  await runFullBatch('ai');
-
+  console.log('Running Naive Batch...');
+  const naiveCount = await runFullBatch('naive');
+  
+  console.log('Running AI Batch...');
+  const aiCount = await runFullBatch('ai');
+  
+  console.log(`\n--- VERIFICATION REPORT ---`);
+  console.log(`Naive processed: ${naiveCount}`);
+  console.log(`AI processed:    ${aiCount}`);
+  
+  if (naiveCount === aiCount) {
+    console.log(`✅ Event counts match! (${naiveCount} each)`);
+  } else {
+    console.log(`❌ Event counts DO NOT match!`);
+  }
+  
   const events = await prisma.recoveryEvent.findMany({
-    include: { transaction: { include: { customer: true } } },
-    orderBy: { createdAt: 'desc' }
+    include: { transaction: true }
   });
-
-  const naiveEvents = events.filter((e: any) => e.strategyType === 'naive');
-  const aiEvents = events.filter((e: any) => e.strategyType === 'ai');
-
-  const calcStats = (evts: typeof events) => {
-    const total = evts.length;
-    const recovered = evts.filter((e: any) => e.outcome === 'recovered').length;
-    const rate = total > 0 ? ((recovered / total) * 100).toFixed(1) : '0.0';
-    return { total, recovered, rate };
-  };
-
-  const naiveStats = calcStats(naiveEvents);
-  const aiStats = calcStats(aiEvents);
   
-  // Output result
-  console.log("=========================================");
-  console.log(`Final Naive Recovery Rate %: ${naiveStats.rate}%`);
-  console.log(`Final AI Recovery Rate %: ${aiStats.rate}%`);
-  console.log(`Naive Event Count: ${naiveStats.total}`);
-  console.log(`AI Event Count: ${aiStats.total}`);
-  console.log("=========================================");
+  const byType = (strategy: string, type: string) => 
+    events.filter(e => e.strategyType === strategy && e.transaction.eventType === type).length;
+    
+  console.log('\n--- BREAKDOWN ---');
+  console.log(`Payment Failures:     Naive=${byType('naive', 'payment_failure')} | AI=${byType('ai', 'payment_failure')}`);
+  console.log(`Checkout Abandonment: Naive=${byType('naive', 'checkout_abandonment')} | AI=${byType('ai', 'checkout_abandonment')}`);
+  console.log(`Overdue Receivables:  Naive=${byType('naive', 'overdue_receivable')} | AI=${byType('ai', 'overdue_receivable')}`);
+
+  console.log('\nDone.');
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect());
+main();
