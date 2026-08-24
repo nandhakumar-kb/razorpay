@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import { Check, Clock, Users, HelpCircle, Zap, CheckCircle2, User, Info, ChevronDown, ChevronUp } from 'lucide-react';
 
 const DIAGNOSIS_MAP: Record<string, string> = {
@@ -51,6 +51,7 @@ function getResultIcon(outcome: string) {
 export function AuditTrail({ events, simulateAction }: { events: any[], simulateAction?: (id: string) => void }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [visibleCount, setVisibleCount] = useState(10);
+  const [isPendingTrans, startTransition] = useTransition();
 
   const toggleExpand = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }));
 
@@ -148,8 +149,13 @@ export function AuditTrail({ events, simulateAction }: { events: any[], simulate
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                        {getResultText(evt.outcome, evt.actionStatus)}
                        {isPending && simulateAction && (
-                         <button onClick={() => simulateAction(evt.id)} className="btn btn-outline" style={{ height: '24px', padding: '0 8px', fontSize: '11px' }}>
-                           Simulate Pay
+                         <button 
+                           onClick={() => startTransition(() => simulateAction(evt.id))} 
+                           disabled={isPendingTrans}
+                           className="btn btn-outline" 
+                           style={{ height: '24px', padding: '0 8px', fontSize: '11px', opacity: isPendingTrans ? 0.7 : 1 }}
+                         >
+                           {isPendingTrans ? '...' : 'Simulate Pay'}
                          </button>
                        )}
                     </div>
