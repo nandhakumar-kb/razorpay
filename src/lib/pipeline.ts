@@ -1,4 +1,4 @@
-import { prisma } from './prisma';
+﻿import { prisma } from './prisma';
 import { classifyFailure, classifyAbandonment, classifyOverdue } from './engines/classifier';
 import { determineAction } from './engines/strategy';
 import { determineNaiveAction } from './engines/strategyNaive';
@@ -8,7 +8,7 @@ import { createPaymentLink, triggerMandateRetry } from './services/razorpay';
 /**
  * Processes ONE batch of up to 5 failed transactions for the given strategy.
  * Kept small to stay under Vercel's serverless function timeout per invocation.
- * Returns the number of transactions it actually processed in this call —
+ * Returns the number of transactions it actually processed in this call â€”
  * 0 means there is nothing left to process for this strategy.
  */
 export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
@@ -28,10 +28,10 @@ export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
     take: 5, // Process in batches of 5 to prevent Vercel Serverless Function 10s timeout
   });
 
-  const APPROVAL_THRESHOLD = 400000; // ₹4000 in paise
+  const APPROVAL_THRESHOLD = 400000; // â‚¹4000 in paise
 
   for (const transaction of failedTransactions) {
-    // Idempotency check — belt and suspenders on top of the query filter above
+    // Idempotency check â€” belt and suspenders on top of the query filter above
     const existingActiveEvent = transaction.recoveryEvents.find(
       (e: any) => e.strategyType === strategy
     );
@@ -103,13 +103,13 @@ export async function runRecoveryPipeline(strategy: 'naive' | 'ai') {
 /**
  * Runs runRecoveryPipeline repeatedly for a strategy until there is nothing
  * left to process (query returns 0). This is what the "Run Full Batch" button
- * should call — it guarantees the naive and AI strategies are evaluated
+ * should call â€” it guarantees the naive and AI strategies are evaluated
  * against the SAME complete set of seeded transactions, so the A/B comparison
  * on the dashboard is actually apples-to-apples.
  *
  * Loops via repeated awaited calls (not one giant synchronous loop) so each
  * individual runRecoveryPipeline() call still stays within the serverless
- * timeout — only the wrapper as a whole takes longer.
+ * timeout â€” only the wrapper as a whole takes longer.
  */
 export async function runFullBatch(strategy: 'naive' | 'ai', maxIterations = 30) {
   let totalProcessed = 0;
@@ -230,5 +230,5 @@ export async function executeRecoveryAction(eventId: string) {
       },
     });
   }
-}   
- 
+} 
+

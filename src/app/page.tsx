@@ -3,7 +3,7 @@ import { runRecoveryPipeline, executeRecoveryAction } from '@/lib/pipeline';
 import { revalidatePath } from 'next/cache';
 import { RunBatchButton } from '@/components/RunBatchButton';
 import { AuditTrail } from '@/components/AuditTrail';
-import { ShieldCheck, BrainCircuit, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, BrainCircuit, CheckCircle2, AlertTriangle, ShieldAlert, Info } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,12 +89,18 @@ export default async function Dashboard() {
 
   const simulateAction = async (eventId: string) => {
     'use server';
-    const event = await prisma.recoveryEvent.findUnique({ where: { id: eventId } });
+    const event = await prisma.recoveryEvent.findUnique({ 
+      where: { id: eventId }, 
+      include: { transaction: true } 
+    });
     if (!event || event.outcome !== 'pending') return;
 
     await prisma.recoveryEvent.update({
       where: { id: eventId },
-      data: { outcome: 'recovered' }
+      data: { 
+        outcome: 'recovered',
+        recoveredAmount: event.transaction.amount
+      }
     });
 
     if (event.diagnosis && event.actionTaken !== 'none') {
@@ -317,7 +323,15 @@ export default async function Dashboard() {
 
           {/* AUDIT TRAIL */}
           <div>
-            <h3 className="section-title" style={{ marginBottom: '24px', fontSize: '24px' }}>Audit Trail</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+              <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '28px', margin: 0, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>
+                <ShieldCheck size={28} strokeWidth={2.5} color="#111827" /> Audit Trail
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6B7280', fontSize: '14px', paddingTop: '8px' }}>
+                <Info size={16} /> Showing latest 50 events
+              </div>
+            </div>
+            <p style={{ fontSize: '15px', color: '#4B5563', marginBottom: '24px' }}>Each card below is one failed payment, explained in plain language.</p>
             <AuditTrail events={stats.events} simulateAction={simulateAction} />
           </div>
           
