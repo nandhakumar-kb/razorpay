@@ -1,9 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import { runRecoveryPipeline, executeRecoveryAction } from '@/lib/pipeline';
+import { runRecoveryPipeline } from '@/lib/pipeline';
 import { revalidatePath } from 'next/cache';
 import { RunBatchButton } from '@/components/RunBatchButton';
 import { AuditTrail } from '@/components/AuditTrail';
 import { ShieldCheck, BrainCircuit, CheckCircle2, AlertTriangle, ShieldAlert, Info } from 'lucide-react';
+import { simulateAction, approveEventAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,50 +75,6 @@ export default async function Dashboard() {
     const count = await runRecoveryPipeline('ai');
     revalidatePath('/');
     return count;
-  };
-
-  const approveEvent = async (formData: FormData) => {
-    'use server';
-    const eventId = formData.get('eventId') as string;
-    await prisma.recoveryEvent.update({
-      where: { id: eventId },
-      data: { actionStatus: 'approved' }
-    });
-    await executeRecoveryAction(eventId);
-    revalidatePath('/');
-  };
-
-  const simulateAction = async (eventId: string) => {
-    'use server';
-    const event = await prisma.recoveryEvent.findUnique({ 
-      where: { id: eventId }, 
-      include: { transaction: true } 
-    });
-    if (!event || event.outcome !== 'pending') return;
-
-    await prisma.recoveryEvent.update({
-      where: { id: eventId },
-      data: { 
-        outcome: 'recovered',
-        recoveredAmount: event.transaction.amount
-      }
-    });
-
-    if (event.diagnosis && event.actionTaken !== 'none') {
-       const existing = await prisma.successRate.findUnique({
-         where: { cause_action: { cause: event.diagnosis, action: event.actionTaken } }
-       });
-       if (existing) {
-         await prisma.successRate.update({
-           where: { cause_action: { cause: event.diagnosis, action: event.actionTaken } },
-           data: {
-             successes: { increment: 1 },
-             successRate: (existing.successes + 1) / existing.attempts
-           }
-         });
-       }
-    }
-    revalidatePath('/');
   };
 
   const deltaRate = (parseFloat(stats.ai.rate) - parseFloat(stats.naive.rate)).toFixed(1);
@@ -306,7 +263,7 @@ export default async function Dashboard() {
                          <td>{evt.diagnosis}</td>
                          <td>{evt.actionTaken}</td>
                          <td>
-                           <form action={approveEvent}>
+                           <form action={approveEventAction}>
                              <input type="hidden" name="eventId" value={evt.id} />
                              <button className="btn btn-primary" style={{ padding: '0 12px', height: '32px', fontSize: '12px' }}>
                                Approve Live
