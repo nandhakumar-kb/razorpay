@@ -322,18 +322,20 @@ export default async function Dashboard() {
           )}
 
           {/* AUDIT TRAIL */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '28px', margin: 0, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>
-                <ShieldCheck size={28} strokeWidth={2.5} color="#111827" /> Audit Trail
-              </h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6B7280', fontSize: '14px', paddingTop: '8px' }}>
-                <Info size={16} /> Showing latest 50 events
+          {stats.events.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <h3 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '28px', margin: 0, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>
+                  <ShieldCheck size={28} strokeWidth={2.5} color="#111827" /> Audit Trail
+                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6B7280', fontSize: '14px', paddingTop: '8px' }}>
+                  <Info size={16} /> Showing latest 50 events
+                </div>
               </div>
+              <p style={{ fontSize: '15px', color: '#4B5563', marginBottom: '24px' }}>Each card below is one failed payment, explained in plain language.</p>
+              <AuditTrail events={stats.events} simulateAction={simulateAction} />
             </div>
-            <p style={{ fontSize: '15px', color: '#4B5563', marginBottom: '24px' }}>Each card below is one failed payment, explained in plain language.</p>
-            <AuditTrail events={stats.events} simulateAction={simulateAction} />
-          </div>
+          )}
           
         </div>
       </div>
