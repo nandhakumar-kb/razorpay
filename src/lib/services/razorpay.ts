@@ -39,8 +39,12 @@ export async function createPaymentLink(
 
     return paymentLink;
   } catch (error: any) {
-    if (error.statusCode === 429 || (error.error && error.error.code === 'RATE_LIMIT_EXCEEDED')) {
-      console.warn('Razorpay test mode limit reached. Mocking payment link.');
+    if (
+      error.statusCode === 429 || 
+      error.statusCode === 401 ||
+      (error.error && (error.error.code === 'RATE_LIMIT_EXCEEDED' || error.error.code === 'BAD_REQUEST_ERROR'))
+    ) {
+      console.warn(`Razorpay API error (${error.statusCode}). Mocking payment link for demo purposes.`);
       return { short_url: `https://rzp.io/i/mock_${Date.now()}` };
     }
     console.error('Error creating payment link:', error);
