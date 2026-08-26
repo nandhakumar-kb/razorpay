@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export function RunBatchButton({ 
   action, 
@@ -11,37 +12,41 @@ export function RunBatchButton({
   label: string, 
   strategy: string 
 }) {
-  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const runAll = () => {
-    if (isPending) return;
+  const runAll = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    let processed = 0;
     
-    startTransition(async () => {
-      let processed = 0;
-      try {
-        while (true) {
-          const batchSize = await action();
-          if (batchSize === 0) break;
-          processed += batchSize;
-          setProgress(processed);
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setProgress(0);
+    try {
+      while (true) {
+        const batchSize = await action();
+        if (batchSize === 0) break;
+        processed += batchSize;
+        setProgress(processed);
+        // Refresh the router to fetch updated Server Component stats after each batch
+        router.refresh();
       }
-    });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setProgress(0);
+      setIsLoading(false);
+      router.refresh();
+    }
   };
 
   return (
     <button 
       onClick={runAll} 
-      disabled={isPending}
+      disabled={isLoading}
       className={`btn ${strategy === 'ai' ? 'btn-primary' : 'btn-outline'}`}
       style={{ width: '100%' }}
     >
-      {isPending ? `Processing... (${progress} done)` : label}
+      {isLoading ? `Processing... (${progress} done)` : label}
     </button>
   );
 }
