@@ -1,10 +1,9 @@
 import { prisma } from '@/lib/prisma';
-import { runRecoveryPipeline } from '@/lib/pipeline';
 import { revalidatePath } from 'next/cache';
 import { RunBatchButton } from '@/components/RunBatchButton';
 import { AuditTrail } from '@/components/AuditTrail';
 import { ShieldCheck, BrainCircuit, CheckCircle2, AlertTriangle, ShieldAlert, Info } from 'lucide-react';
-import { simulateAction, approveEventAction } from './actions';
+import { simulateAction, approveEventAction, runNaiveAction, runAIAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,20 +61,6 @@ async function fetchStats() {
 
 export default async function Dashboard() {
   const stats = await fetchStats();
-
-  const runNaive = async () => {
-    'use server';
-    const count = await runRecoveryPipeline('naive');
-    revalidatePath('/');
-    return count;
-  };
-
-  const runAI = async () => {
-    'use server';
-    const count = await runRecoveryPipeline('ai');
-    revalidatePath('/');
-    return count;
-  };
 
   const deltaRate = (parseFloat(stats.ai.rate) - parseFloat(stats.naive.rate)).toFixed(1);
   const deltaRecovered = stats.ai.amountRecovered - stats.naive.amountRecovered;
@@ -167,7 +152,7 @@ export default async function Dashboard() {
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
                   Total Protected: ₹{(stats.naive.amountProtected / 100).toLocaleString()}
                 </div>
-                <RunBatchButton action={runNaive} label="Run Naive Batch" strategy="naive" />
+                <RunBatchButton action={runNaiveAction} label="Run Naive Batch" strategy="naive" />
               </div>
             </div>
 
@@ -208,7 +193,7 @@ export default async function Dashboard() {
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
                   Total Protected: ₹{(stats.ai.amountProtected / 100).toLocaleString()}
                 </div>
-                <RunBatchButton action={runAI} label="Run AI Pipeline Batch" strategy="ai" />
+                <RunBatchButton action={runAIAction} label="Run AI Pipeline Batch" strategy="ai" />
               </div>
             </div>
           </div>

@@ -45,3 +45,17 @@ export async function approveEventAction(formData: FormData) {
   await executeRecoveryAction(eventId);
   revalidatePath('/');
 }
+
+export async function runNaiveAction() {
+  const { runRecoveryPipeline } = await import('@/lib/pipeline');
+  const count = await runRecoveryPipeline('naive');
+  revalidatePath('/');
+  return count;
+}
+
+export async function runAIAction() {
+  const { runRecoveryPipeline } = await import('@/lib/pipeline');
+  const count = await runRecoveryPipeline('ai');
+  revalidatePath('/');
+  return count;
+}
